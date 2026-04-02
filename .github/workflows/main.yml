@@ -33,29 +33,32 @@ jobs:
     - name: 🧰 Install Gradle
       run: sudo apt-get update && sudo apt-get install -y gradle
 
-    - name: ⚙️ Generate Wrapper
-      run: |
-        cd project/novamesh/android
-        gradle wrapper
+     - name: ⚙️ Generate Wrapper
+  run: |
+    cd project/android
+    gradle wrapper
 
     - name: 🔑 Make gradlew executable
-      run: |
-        cd project/novamesh/android
-        chmod +x gradlew
+  run: |
+    cd project/android
+    chmod +x gradlew
 
     - name: 🌐 Copy Web UI
-      run: |
-        mkdir -p project/novamesh/android/app/src/main/assets/webui/
-        cp project/novamesh/web-ui/dashboard.html \
-           project/novamesh/android/app/src/main/assets/webui/
+  run: |
+    mkdir -p project/android/app/src/main/assets/webui/
+    cp project/web-ui/dashboard.html \
+       project/android/app/src/main/assets/webui/
 
     - name: 🛠️ Build APK
-      run: |
-        cd project/novamesh/android
-        ./gradlew assembleDebug
+  run: |
+    cd project/android
+    ./gradlew assembleDebug
 
-    - name: 📤 Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: NovaMesh-APK
-        path: project/novamesh/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: 📤 Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+     name: NovaMesh-APK
+      path: project/android/app/build/outputs/apk/debug/app-debug.apk
+     
+       - name: 📂 Show Structure
+  run: ls -R project
