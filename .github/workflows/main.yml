@@ -1,9 +1,9 @@
-name: 🚀 Build NovaMesh APK (Full CI)
+name: 🚀 Build NovaMesh APK (Fixed)
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:   # allows manual run
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,44 +11,37 @@ jobs:
 
     steps:
 
-    # 1️⃣ Checkout repo
-    - name: 📥 Checkout Repository
+    - name: 📥 Checkout
       uses: actions/checkout@v4
 
-    # 2️⃣ Unzip your project
-    - name: 📦 Extract NovaMesh ZIP
+    - name: 📦 Unzip Project
       run: unzip novamesh.zip -d project
 
-    # 3️⃣ Setup Java (required for Android build)
-    - name: ☕ Setup JDK 17
+    - name: ☕ Setup JDK
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    # 4️⃣ Copy Web UI into Android assets
     - name: 🌐 Copy Web UI
       run: |
-        mkdir -p project/HotspotRouterOS/android/app/src/main/assets/webui/
-        cp project/HotspotRouterOS/web-ui/dashboard.html \
-           project/HotspotRouterOS/android/app/src/main/assets/webui/
+        mkdir -p project/novamesh/android/app/src/main/assets/webui/
+        cp project/novamesh/web-ui/dashboard.html \
+           project/novamesh/android/app/src/main/assets/webui/
 
-    # 5️⃣ Show SHA-1 (for Firebase setup)
-    - name: 🔑 Generate SHA-1 (Firebase)
+    - name: 🔑 Generate SHA-1
       run: |
-        cd project/HotspotRouterOS/android
+        cd project/novamesh/android
         chmod +x gradlew
         ./gradlew signingReport
 
-    # 6️⃣ Build Debug APK
-    - name: 🛠️ Build Debug APK
+    - name: 🛠️ Build APK
       run: |
-        cd project/HotspotRouterOS/android
+        cd project/novamesh/android
         ./gradlew assembleDebug
 
-    # 7️⃣ Upload APK as artifact
     - name: 📤 Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: NovaMesh-Debug-APK
-        path: project/HotspotRouterOS/android/app/build/outputs/apk/debug/app-debug.apk
+        name: NovaMesh-APK
+        path: project/novamesh/android/app/build/outputs/apk/debug/app-debug.apk
