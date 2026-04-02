@@ -10,38 +10,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
 
-    - name: 📥 Checkout
-      uses: actions/checkout@v4
+      - name: 📦 Unzip Project
+        run: unzip novamesh.zip -d project
 
-    - name: 📦 Unzip Project
-      run: unzip novamesh.zip -d project
+      - name: 🧹 Fix Android source path
+        run: |
+          if [ -d "project/android/app/ src" ] && [ ! -d "project/android/app/src" ]; then
+            mv "project/android/app/ src" "project/android/app/src"
+          fi
 
-    - name: ☕ Setup JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: ☕ Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: 🌐 Copy Web UI
-      run: |
-        mkdir -p project/novamesh/android/app/src/main/assets/webui/
-        cp project/novamesh/web-ui/dashboard.html \
-           project/novamesh/android/app/src/main/assets/webui/
+      - name: 🌐 Copy Web UI
+        run: |
+          mkdir -p project/android/app/src/main/assets/webui/
+          cp project/web-ui/dashboard.html              project/android/app/src/main/assets/webui/
 
-    - name: 🔑 Generate SHA-1
-      run: |
-        cd project/novamesh/android
-        chmod +x gradlew
-        ./gradlew signingReport
+      - name: 🔑 Generate SHA-1
+        run: |
+          cd project/android
+          chmod +x gradlew
+          ./gradlew signingReport
 
-    - name: 🛠️ Build APK
-      run: |
-        cd project/novamesh/android
-        ./gradlew assembleDebug
+      - name: 🛠️ Build APK
+        run: |
+          cd project/android
+          ./gradlew assembleDebug
 
-    - name: 📤 Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: NovaMesh-APK
-        path: project/novamesh/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovaMesh-APK
+          path: project/android/app/build/outputs/apk/debug/app-debug.apk
