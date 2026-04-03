@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NovaMesh</string>
+    <string name="app_tagline">Smart Hotspot Router OS v2.1.0</string>
+
+    <string name="status_starting">Service starting…</string>
+    <string name="ssid_placeholder">SSID: —</string>
+    <string name="dashboard_placeholder">Dashboard: —</string>
+    <string name="root_checking">Root: checking…</string>
+
+    <string name="btn_open_dashboard">Open Dashboard in Browser</string>
+    <string name="btn_stop_service">Stop Service</string>
+
+    <string name="footer_hint">Connect a device to your hotspot, then browse to the dashboard URL above.</string>
+
+    <string name="notification_channel_name">NovaMesh Hotspot</string>
+    <string name="notification_channel_desc">NovaMesh hotspot foreground service</string>
+</resources>

@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NovaMesh — Smart Hotspot OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<style>
+  :root {
+    --bg-void:      #03080f;
+    --bg-deep:      #060d18;
+    --bg-card:      rgba(6, 18, 35, 0.72);
+    --bg-card-hov:  rgba(10, 28, 52, 0.85);
+    --border-dim:   rgba(0, 200, 255, 0.12);
+    --border-glow:  rgba(0, 200, 255, 0.45);
+    --cyan:         #00c8ff;
+    --cyan-dim:     rgba(0, 200, 255, 0.15);
+    --purple:       #9b5cff;
+    --purple-dim:   rgba(155, 92, 255, 0.15);
+    --green:        #00ff9d;
+    --green-dim:    rgba(0, 255, 157, 0.12);
+    --red:          #ff3d6b;
+    --red-dim:      rgba(255, 61, 107, 0.12);
+    --amber:        #ffb830;
+    --text-primary:  #d0e8f8;
+    --text-secondary:#6b8ca8;
+    --text-muted:    #3a5570;
+    --font-display: 'Exo 2', sans-serif;
+    --font-mono:    'Share Tech Mono', monospace;
+    --radius:       12px;
+    --transition:   0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-display);
+    background: var(--bg-void);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── BACKGROUND EFFECTS ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0,120,200,0.09) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 85% 110%, rgba(90,40,200,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 100% 80% at 50% 50%, rgba(0,50,100,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Scanlines */
+  body::after {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background: repeating-linear-gradient(0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* ─── LOGIN OVERLAY ─── */
+  #loginOverlay {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at center, #050e1c 0%, #020509 100%);
+    transition: opacity 0.5s ease, visibility 0.5s;
+  }
+  #loginOverlay.hidden { opacity: 0; visibility: hidden; }
+
+  .login-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glow);
+    border-radius: 20px;
+    padding: 3rem 2.5rem;
+    width: min(420px, 94vw);
+    backdrop-filter: blur(32px);
+    box-shadow: 0 0 60px rgba(0,200,255,0.08), 0 40px 80px rgba(0,0,0,0.6);
+    animation: fadeSlideUp 0.6s ease both;
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .login-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 2rem;
+  }
+  .login-logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: #fff;
+    box-shadow: 0 0 24px rgba(0,200,255,0.4);
+  }
+  .login-logo-text { line-height: 1.1; }
+  .login-logo-text h1 {
+    font-size: 1.5rem; font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .login-logo-text span { font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-secondary); letter-spacing: 3px; }
+
+  .login-field { margin-bottom: 1.2rem; }
+  .login-field label { display: block; font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .login-field input {
+    width: 100%; padding: 12px 16px;
+    background: rgba(0,200,255,0.04);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px; color: var(--text-primary);
+    font-family: var(--font-mono); font-size: 0.9rem;
+    outline: none; transition: var(--transition);
+  }
+  .login-field input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,200,255,0.1); }
+
+  .login-btn {
+    width: 100%; padding: 13px;
+    background: linear-gradient(135deg, rgba(0,200,255,0.2), rgba(155,92,255,0.2));
+    border: 1px solid var(--border-glow);
+    border-radius: 8px; color: var(--cyan);
+    font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
+    letter-spacing: 2px; cursor: pointer;
+    transition: var(--transition); margin-top: 0.5rem;
+    position: relative; overflow: hidden;
+  }
+  .login-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(155,92,255,0.15));
+    opacity: 0; transition: var(--transition);
+  }
+  .login-btn:hover::after { opacity: 1; }
+  .login-btn:hover { box-shadow: 0 0 30px rgba(0,200,255,0.25); transform: translateY(-1px); }
+  .login-error { color: var(--red); font-size: 0.78rem; font-family: var(--font-mono); margin-top: 10px; display: none; }
+
+  /* ─── MAIN LAYOUT ─── */
+  #app {
+    display: none; min-height: 100vh;
+    position: relative; z-index: 1;
+  }
+  #app.visible { display: flex; }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: rgba(4, 12, 24, 0.9);
+    border-right: 1px solid var(--border-dim);
+    backdrop-filter: blur(20px);
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+    padding: 0 0 1.5rem;
+    transition: width 0.25s ease;
+    z-index: 100;
+  }
+
+  .sidebar-brand {
+    padding: 1.4rem 1.4rem 1.2rem;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-icon {
+    width: 38px; height: 38px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: #fff;
+    box-shadow: 0 0 20px rgba(0,200,255,0.3);
+  }
+  .brand-text { line-height: 1.1; }
+  .brand-text h2 { font-size: 1.05rem; font-weight: 900; letter-spacing: 1.5px; color: var(--text-primary); }
+  .brand-text span { font-size: 0.6rem; font-family: var(--font-mono); color: var(--text-secondary); letter-spacing: 2px; }
+
+  /* Hotspot status pill */
+  .hotspot-status {
+    margin: 1rem 1.2rem;
+    padding: 10px 14px;
+    background: var(--green-dim);
+    border: 1px solid rgba(0,255,157,0.2);
+    border-radius: 8px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: var(--transition);
+  }
+  .hotspot-status:hover { background: rgba(0,255,157,0.2); }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .status-dot.off { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .status-info { flex: 1; }
+  .status-label { font-size: 0.68rem; font-family: var(--font-mono); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+  .status-value { font-size: 0.82rem; font-weight: 700; color: var(--green); }
+
+  /* Nav */
+  nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
+  .nav-section-label {
+    padding: 1rem 1.4rem 0.4rem;
+    font-size: 0.62rem; font-family: var(--font-mono);
+    color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 1.4rem; cursor: pointer;
+    transition: var(--transition); border-radius: 0;
+    color: var(--text-secondary); font-size: 0.875rem; font-weight: 400;
+    position: relative; user-select: none;
+  }
+  .nav-item:hover { color: var(--text-primary); background: rgba(0,200,255,0.04); }
+  .nav-item.active {
+    color: var(--cyan);
+    background: linear-gradient(90deg, rgba(0,200,255,0.1), transparent);
+  }
+  .nav-item.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--cyan);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 10px var(--cyan);
+  }
+  .nav-item i { width: 18px; text-align: center; font-size: 0.9rem; }
+  .nav-badge {
+    margin-left: auto; padding: 2px 7px;
+    background: var(--cyan-dim); border: 1px solid var(--border-dim);
+    border-radius: 10px; font-size: 0.65rem; font-family: var(--font-mono);
+    color: var(--cyan);
+  }
+
+  .sidebar-footer {
+    padding: 1rem 1.4rem 0;
+    border-top: 1px solid var(--border-dim);
+  }
+  .logout-btn {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-muted); font-size: 0.82rem;
+    cursor: pointer; transition: var(--transition); padding: 8px 0;
+  }
+  .logout-btn:hover { color: var(--red); }
+
+  /* ─── MAIN CONTENT ─── */
+  .main { flex: 1; overflow-y: auto; min-width: 0; }
+
+  /* Topbar */
+  .topbar {
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--border-dim);
+    background: rgba(4, 12, 24, 0.7);
+    backdrop-filter: blur(20px);
+    display: flex; align-items: center; gap: 1rem;
+    position: sticky; top: 0; z-index: 50;
+  }
+  .page-title { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.5px; flex: 1; }
+  .topbar-actions { display: flex; align-items: center; gap: 12px; }
+  .topbar-ssid { font-family: var(--font-mono); font-size: 0.78rem; color: var(--cyan); background: var(--cyan-dim); border: 1px solid rgba(0,200,255,0.2); padding: 5px 12px; border-radius: 20px; }
+  .topbar-time { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); min-width: 70px; text-align: right; }
+
+  /* ─── CONTENT SECTIONS ─── */
+  .content { padding: 2rem; display: none; }
+  .content.active { display: block; }
+
+  /* Section title */
+  .section-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 1.6rem;
+  }
+  .section-header h2 { font-size: 1.1rem; font-weight: 700; }
+  .section-header .section-tag {
+    font-family: var(--font-mono); font-size: 0.65rem; color: var(--cyan);
+    background: var(--cyan-dim); border: 1px solid rgba(0,200,255,0.2);
+    padding: 3px 9px; border-radius: 4px; letter-spacing: 1px;
+  }
+
+  /* ─── GRID SYSTEM ─── */
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; }
+
+  @media (max-width: 1200px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-2-1 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+    .content { padding: 1rem; }
+    .topbar { padding: 0.8rem 1rem; }
+  }
+
+  /* ─── GLASS CARD ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    transition: var(--transition);
+    overflow: hidden;
+  }
+  .card:hover { border-color: rgba(0,200,255,0.22); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .card-header {
+    padding: 1rem 1.3rem 0.6rem;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card-header h3 { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.5px; }
+  .card-header i { font-size: 0.85rem; color: var(--cyan); }
+  .card-body { padding: 1.2rem 1.3rem; }
+
+  /* ─── STAT CARDS ─── */
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: var(--radius);
+    padding: 1.3rem;
+    backdrop-filter: blur(20px);
+    transition: var(--transition);
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+  }
+  .stat-card.cyan::before { background: linear-gradient(90deg, transparent, var(--cyan), transparent); }
+  .stat-card.purple::before { background: linear-gradient(90deg, transparent, var(--purple), transparent); }
+  .stat-card.green::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+  .stat-card.amber::before { background: linear-gradient(90deg, transparent, var(--amber), transparent); }
+  .stat-card:hover { border-color: rgba(0,200,255,0.22); transform: translateY(-2px); }
+
+  .stat-label { font-size: 0.68rem; font-family: var(--font-mono); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.6rem; }
+  .stat-value { font-size: 2.1rem; font-weight: 900; line-height: 1; margin-bottom: 0.4rem; }
+  .stat-value.cyan { color: var(--cyan); text-shadow: 0 0 20px rgba(0,200,255,0.4); }
+  .stat-value.purple { color: var(--purple); text-shadow: 0 0 20px rgba(155,92,255,0.4); }
+  .stat-value.green { color: var(--green); text-shadow: 0 0 20px rgba(0,255,157,0.4); }
+  .stat-value.amber { color: var(--amber); text-shadow: 0 0 20px rgba(255,184,48,0.4); }
+  .stat-sub { font-size: 0.72rem; color: var(--text-secondary); }
+  .stat-icon { position: absolute; right: 1.2rem; top: 1.2rem; font-size: 1.6rem; opacity: 0.08; }
+
+  /* ─── SPEED METER ─── */
+  .speed-bars {
+    display: flex; gap: 6px; align-items: flex-end; height: 40px; margin-top: 10px;
+  }
+  .speed-bar {
+    flex: 1; border-radius: 3px 3px 0 0;
+    background: var(--cyan-dim); border-top: 2px solid var(--cyan);
+    animation: barGrow 1s ease both;
+    min-height: 4px;
+  }
+  @keyframes barGrow { from { transform: scaleY(0); transform-origin: bottom; } to { transform: scaleY(1); } }
+
+  /* ─── DEVICES TABLE ─── */
+  .device-row {
+    display: grid;
+    grid-template-columns: 38px 1fr 120px 90px 90px 120px;
+    align-items: center; gap: 0.5rem;
+    padding: 0.85rem 1.3rem;
+    border-bottom: 1px solid var(--border-dim);
+    transition: var(--transition); cursor: default;
+    animation: rowIn 0.3s ease both;
+  }
+  .device-row:last-child { border-bottom: none; }
+  .device-row:hover { background: rgba(0,200,255,0.04); }
+  @keyframes rowIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+  .devices-table-header {
+    display: grid;
+    grid-template-columns: 38px 1fr 120px 90px 90px 120px;
+    gap: 0.5rem;
+    padding: 0.65rem 1.3rem;
+    border-bottom: 1px solid var(--border-dim);
+    font-size: 0.65rem; font-family: var(--font-mono);
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  .device-avatar {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .device-avatar.phone { background: var(--cyan-dim); color: var(--cyan); }
+  .device-avatar.laptop { background: var(--purple-dim); color: var(--purple); }
+  .device-avatar.tablet { background: var(--green-dim); color: var(--green); }
+  .device-avatar.unknown { background: rgba(255,255,255,0.04); color: var(--text-muted); }
+
+  .device-name { font-weight: 600; font-size: 0.85rem; }
+  .device-mac { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-secondary); margin-top: 2px; }
+
+  .signal-dots { display: flex; gap: 3px; align-items: flex-end; }
+  .signal-dot { width: 5px; border-radius: 2px; background: var(--border-dim); }
+  .signal-dot.lit { background: var(--green); }
+  .signal-dot:nth-child(1) { height: 6px; }
+  .signal-dot:nth-child(2) { height: 10px; }
+  .signal-dot:nth-child(3) { height: 14px; }
+  .signal-dot:nth-child(4) { height: 18px; }
+
+  .device-usage { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-primary); }
+  .device-ip { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); }
+
+  .device-actions { display: flex; gap: 6px; }
+  .action-btn {
+    padding: 5px 10px; border-radius: 6px; border: 1px solid;
+    font-size: 0.68rem; font-family: var(--font-mono);
+    cursor: pointer; transition: var(--transition); letter-spacing: 0.5px;
+    background: transparent;
+  }
+  .action-btn.block { border-color: rgba(255,61,107,0.3); color: var(--red); }
+  .action-btn.block:hover { background: var(--red-dim); }
+  .action-btn.limit { border-color: rgba(255,184,48,0.3); color: var(--amber); }
+  .action-btn.limit:hover { background: rgba(255,184,48,0.1); }
+
+  .badge {
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 0.65rem; font-family: var(--font-mono); letter-spacing: 0.5px;
+  }
+  .badge.allowed { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,255,157,0.2); }
+  .badge.blocked { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,61,107,0.2); }
+  .badge.limited { background: rgba(255,184,48,0.1); color: var(--amber); border: 1px solid rgba(255,184,48,0.2); }
+
+  /* ─── MINI CHART ─── */
+  .mini-chart {
+    height: 70px; position: relative;
+    display: flex; align-items: flex-end; gap: 3px;
+  }
+  .chart-line {
+    background: linear-gradient(to top, rgba(0,200,255,0.08), rgba(0,200,255,0.35));
+    border-top: 2px solid var(--cyan);
+    border-radius: 3px 3px 0 0; flex: 1;
+    transition: height 0.4s ease;
+  }
+
+  /* ─── NETWORK RING ─── */
+  .ring-wrap {
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem 0 0.5rem;
+  }
+  .ring-svg { transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(0,200,255,0.08); }
+  .ring-fill {
+    fill: none; stroke: url(#ringGrad);
+    stroke-linecap: round;
+    stroke-dasharray: 283;
+    stroke-dashoffset: 100;
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .ring-label { text-anchor: middle; dominant-baseline: middle; transform: rotate(90deg); transform-origin: 50px 50px; }
+  .ring-num { font-family: 'Exo 2', sans-serif; font-weight: 900; font-size: 18px; fill: var(--cyan); }
+  .ring-sub { font-family: 'Share Tech Mono', monospace; font-size: 8px; fill: #6b8ca8; }
+
+  /* ─── FORM ELEMENTS ─── */
+  .form-group { margin-bottom: 1.2rem; }
+  .form-label { display: block; font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 7px; letter-spacing: 1px; text-transform: uppercase; }
+  .form-input, .form-select {
+    width: 100%; padding: 10px 14px;
+    background: rgba(0,200,255,0.03);
+    border: 1px solid var(--border-dim);
+    border-radius: 8px; color: var(--text-primary);
+    font-family: var(--font-mono); font-size: 0.85rem;
+    outline: none; transition: var(--transition);
+    -webkit-appearance: none;
+  }
+  .form-input:focus, .form-select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,200,255,0.08); }
+  .form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b8ca8' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; cursor: pointer; }
+  option { background: #060d18; color: var(--text-primary); }
+
+  /* Toggle */
+  .toggle-wrap { display: flex; align-items: center; gap: 10px; }
+  .toggle {
+    width: 44px; height: 24px; border-radius: 12px;
+    background: rgba(255,255,255,0.08); border: 1px solid var(--border-dim);
+    position: relative; cursor: pointer; transition: var(--transition);
+    flex-shrink: 0;
+  }
+  .toggle.on { background: rgba(0,200,255,0.2); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,200,255,0.2); }
+  .toggle::after {
+    content: ''; position: absolute;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--text-muted); top: 2px; left: 2px;
+    transition: var(--transition);
+  }
+  .toggle.on::after { background: var(--cyan); transform: translateX(20px); }
+  .toggle-label { font-size: 0.82rem; color: var(--text-secondary); }
+
+  /* Btn primary */
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: 1px solid;
+    font-family: var(--font-display); font-weight: 600; font-size: 0.82rem;
+    cursor: pointer; transition: var(--transition); letter-spacing: 1px;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(0,200,255,0.15), rgba(155,92,255,0.15));
+    border-color: var(--border-glow); color: var(--cyan);
+  }
+  .btn-primary:hover { box-shadow: 0 0 25px rgba(0,200,255,0.2); transform: translateY(-1px); }
+  .btn-danger {
+    background: var(--red-dim); border-color: rgba(255,61,107,0.35); color: var(--red);
+  }
+  .btn-danger:hover { box-shadow: 0 0 20px rgba(255,61,107,0.2); }
+  .btn-success {
+    background: var(--green-dim); border-color: rgba(0,255,157,0.25); color: var(--green);
+  }
+  .btn-sm { padding: 6px 13px; font-size: 0.75rem; }
+
+  /* ─── DNS Cards ─── */
+  .dns-option {
+    border: 1px solid var(--border-dim);
+    border-radius: 10px; padding: 1rem;
+    cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .dns-option:hover { border-color: rgba(0,200,255,0.2); background: var(--cyan-dim); }
+  .dns-option.selected { border-color: var(--cyan); background: var(--cyan-dim); box-shadow: 0 0 20px rgba(0,200,255,0.08); }
+  .dns-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .dns-name { font-weight: 700; font-size: 0.85rem; }
+  .dns-addr { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ─── SECURITY PANEL ─── */
+  .security-item {
+    display: flex; align-items: center;
+    padding: 1rem 1.3rem; border-bottom: 1px solid var(--border-dim);
+    gap: 14px;
+  }
+  .security-item:last-child { border-bottom: none; }
+  .security-icon { width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .security-icon.safe { background: var(--green-dim); color: var(--green); }
+  .security-icon.warn { background: rgba(255,184,48,0.1); color: var(--amber); }
+  .security-icon.danger { background: var(--red-dim); color: var(--red); }
+  .security-text { flex: 1; }
+  .security-title { font-size: 0.85rem; font-weight: 600; }
+  .security-desc { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ─── LOG TERMINAL ─── */
+  .log-terminal {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(0,200,255,0.1);
+    border-radius: 8px; padding: 1rem; height: 180px;
+    overflow-y: auto; font-family: var(--font-mono); font-size: 0.72rem;
+    scrollbar-width: thin; scrollbar-color: var(--border-dim) transparent;
+  }
+  .log-entry { padding: 2px 0; line-height: 1.5; }
+  .log-entry .time { color: var(--text-muted); margin-right: 8px; }
+  .log-entry .info { color: var(--cyan); }
+  .log-entry .warn { color: var(--amber); }
+  .log-entry .block { color: var(--red); }
+  .log-entry .connect { color: var(--green); }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(0,200,255,0.2); }
+
+  /* ─── TOAST ─── */
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    padding: 12px 18px; border-radius: 10px; backdrop-filter: blur(20px);
+    border: 1px solid; display: flex; align-items: center; gap: 10px;
+    font-size: 0.82rem; animation: toastIn 0.3s ease;
+    min-width: 220px;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .toast.success { background: rgba(0,255,157,0.08); border-color: rgba(0,255,157,0.2); color: var(--green); }
+  .toast.error { background: var(--red-dim); border-color: rgba(255,61,107,0.25); color: var(--red); }
+  .toast.info { background: var(--cyan-dim); border-color: rgba(0,200,255,0.2); color: var(--cyan); }
+
+  .mb-6 { margin-bottom: 1.5rem; }
+  .mt-4 { margin-top: 1rem; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LOGIN OVERLAY
+═══════════════════════════════════════════ -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon"><i class="fas fa-wifi"></i></div>
+      <div class="login-logo-text">
+        <h1>NOVAMESH</h1>
+        <span>HOTSPOT ROUTER OS</span>
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Admin Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@novamesh.local" autocomplete="off">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="login-btn" onclick="doLogin()">
+      <i class="fas fa-terminal" style="margin-right:8px;"></i> AUTHENTICATE
+    </button>
+    <div class="login-error" id="loginError">⚠ Invalid credentials. Access denied.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MAIN APPLICATION
+═══════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="fas fa-wifi"></i></div>
+      <div class="brand-text">
+        <h2>NovaMesh</h2>
+        <span>ROUTER OS v2.1</span>
+      </div>
+    </div>
+
+    <div class="hotspot-status" onclick="toggleHotspot()">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="status-info">
+        <div class="status-label">Hotspot</div>
+        <div class="status-value" id="statusText">ACTIVE</div>
+      </div>
+      <i class="fas fa-power-off" style="color: var(--text-muted); font-size: 0.8rem;"></i>
+    </div>
+
+    <nav>
+      <div class="nav-section-label">Monitor</div>
+      <div class="nav-item active" data-page="dashboard" onclick="switchPage(this)">
+        <i class="fas fa-gauge-high"></i> Dashboard
+      </div>
+      <div class="nav-item" data-page="devices" onclick="switchPage(this)">
+        <i class="fas fa-laptop"></i> Devices
+        <span class="nav-badge" id="navDeviceCount">4</span>
+      </div>
+      <div class="nav-item" data-page="traffic" onclick="switchPage(this)">
+        <i class="fas fa-chart-area"></i> Traffic
+      </div>
+      <div class="nav-section-label">Control</div>
+      <div class="nav-item" data-page="hotspot" onclick="switchPage(this)">
+        <i class="fas fa-broadcast-tower"></i> Hotspot Config
+      </div>
+      <div class="nav-item" data-page="dns" onclick="switchPage(this)">
+        <i class="fas fa-server"></i> DNS & Network
+      </div>
+      <div class="nav-item" data-page="security" onclick="switchPage(this)">
+        <i class="fas fa-shield-halved"></i> Security
+      </div>
+      <div class="nav-section-label">System</div>
+      <div class="nav-item" data-page="logs" onclick="switchPage(this)">
+        <i class="fas fa-terminal"></i> System Logs
+      </div>
+      <div class="nav-item" data-page="settings" onclick="switchPage(this)">
+        <i class="fas fa-sliders"></i> Settings
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="doLogout()">
+        <i class="fas fa-right-from-bracket"></i> Sign Out
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="topbar">
+      <span class="page-title" id="pageTitle">Dashboard</span>
+      <div class="topbar-actions">
+        <span class="topbar-ssid" id="topbarSSID">NovaMesh-5G</span>
+        <span class="topbar-time" id="topbarTime">00:00:00</span>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD PAGE ══ -->
+    <div id="page-dashboard" class="content active">
+      <div class="section-header">
+        <h2>System Overview</h2>
+        <span class="section-tag">LIVE</span>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="grid-4 mb-6">
+        <div class="stat-card cyan">
+          <div class="stat-label">Connected Devices</div>
+          <div class="stat-value cyan" id="statDevices">4</div>
+          <div class="stat-sub">2 active, 2 idle</div>
+          <i class="fas fa-mobile-screen stat-icon"></i>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">Download Speed</div>
+          <div class="stat-value purple" id="statDown">24.6</div>
+          <div class="stat-sub">Mbps real-time</div>
+          <i class="fas fa-arrow-down stat-icon"></i>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Upload Speed</div>
+          <div class="stat-value green" id="statUp">8.3</div>
+          <div class="stat-sub">Mbps real-time</div>
+          <i class="fas fa-arrow-up stat-icon"></i>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-label">Total Data Today</div>
+          <div class="stat-value amber" id="statTotal">1.47</div>
+          <div class="stat-sub">GB transferred</div>
+          <i class="fas fa-database stat-icon"></i>
+        </div>
+      </div>
+
+      <!-- Charts + Ring -->
+      <div class="grid-2-1 mb-6">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-chart-line"></i>
+            <h3>Bandwidth Usage (Last 20s)</h3>
+          </div>
+          <div class="card-body">
+            <div style="display:flex; gap: 16px; margin-bottom: 8px; font-size: 0.72rem; font-family: var(--font-mono);">
+              <span style="color:var(--cyan);">▬ Download</span>
+              <span style="color:var(--purple);">▬ Upload</span>
+            </div>
+            <div style="height: 90px; position: relative; border-bottom: 1px solid var(--border-dim);">
+              <canvas id="bwChart" style="width:100%; height:100%;"></canvas>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.6rem; font-family: var(--font-mono); color: var(--text-muted); margin-top: 4px;">
+              <span>-20s</span><span>-15s</span><span>-10s</span><span>-5s</span><span>NOW</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-circle-nodes"></i>
+            <h3>Channel Load</h3>
+          </div>
+          <div class="card-body">
+            <div class="ring-wrap">
+              <svg class="ring-svg" width="100" height="100" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#00c8ff"/>
+                    <stop offset="100%" stop-color="#9b5cff"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-track" cx="50" cy="50" r="45" stroke-width="8"/>
+                <circle class="ring-fill" id="ringFill" cx="50" cy="50" r="45" stroke-width="8"/>
+                <text class="ring-label">
+                  <tspan class="ring-num" x="50" y="46" text-anchor="middle" dominant-baseline="middle" id="ringPct">42%</tspan>
+                  <tspan class="ring-sub" x="50" y="60" text-anchor="middle">LOAD</tspan>
+                </text>
+              </svg>
+            </div>
+            <div style="font-size: 0.72rem; text-align: center; font-family: var(--font-mono); color: var(--text-secondary);">5 GHz · Ch 36</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent devices + Log preview -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-mobile-screen"></i>
+            <h3>Connected Devices</h3>
+          </div>
+          <div id="dashDeviceList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <i class="fas fa-terminal"></i>
+            <h3>Recent Events</h3>
+          </div>
+          <div class="card-body">
+            <div class="log-terminal" id="dashLog"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DEVICES PAGE ══ -->
+    <div id="page-devices" class="content">
+      <div class="section-header">
+        <h2>Device Management</h2>
+        <span class="section-tag" id="deviceCountTag">4 ONLINE</span>
+      </div>
+      <div class="card">
+        <div class="devices-table-header">
+          <span></span>
+          <span>Device</span>
+          <span>Signal</span>
+          <span>Usage</span>
+          <span>IP Address</span>
+          <span>Actions</span>
+        </div>
+        <div id="fullDeviceList"></div>
+      </div>
+    </div>
+
+    <!-- ══ TRAFFIC PAGE ══ -->
+    <div id="page-traffic" class="content">
+      <div class="section-header">
+        <h2>Traffic Analysis</h2>
+        <span class="section-tag">MONITORING</span>
+      </div>
+      <div class="grid-2 mb-6">
+        <div class="stat-card cyan">
+          <div class="stat-label">Total Download</div>
+          <div class="stat-value cyan">1.21 GB</div>
+          <div class="stat-sub">Today so far</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">Total Upload</div>
+          <div class="stat-value purple">258 MB</div>
+          <div class="stat-sub">Today so far</div>
+        </div>
+      </div>
+      <div class="card mb-6">
+        <div class="card-header"><i class="fas fa-chart-bar"></i><h3>Hourly Traffic (Last 12h)</h3></div>
+        <div class="card-body">
+          <div style="display: flex; gap: 8px; align-items: flex-end; height: 120px; padding-top: 10px;">
+            <div id="hourlyBars" style="display: flex; gap: 5px; align-items: flex-end; width: 100%; height: 100%;"></div>
+          </div>
+          <div style="display: flex; gap: 5px; margin-top: 6px;">
+            <div id="hourlyLabels" style="display: flex; gap: 5px; width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><i class="fas fa-pie-chart"></i><h3>Per-Device Usage Today</h3></div>
+        <div class="card-body" id="perDeviceUsage"></div>
+      </div>
+    </div>
+
+    <!-- ══ HOTSPOT CONFIG PAGE ══ -->
+    <div id="page-hotspot" class="content">
+      <div class="section-header">
+        <h2>Hotspot Configuration</h2>
+        <span class="section-tag">SETTINGS</span>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><i class="fas fa-wifi"></i><h3>Primary Network</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Network Name (SSID)</label>
+              <input class="form-input" id="cfgSSID" value="NovaMesh-5G">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input class="form-input" id="cfgPass" type="password" value="NovaSecure2024!">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Frequency Band</label>
+              <select class="form-select" id="cfgBand">
+                <option value="5">5 GHz (Faster, shorter range)</option>
+                <option value="2">2.4 GHz (Slower, longer range)</option>
+                <option value="auto">Auto (Device decides)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Max Devices</label>
+              <input class="form-input" id="cfgMaxDev" type="number" value="8" min="1" max="20">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hide Network (SSID Broadcast)</label>
+              <div class="toggle-wrap">
+                <div class="toggle" id="toggleHidden" onclick="this.classList.toggle('on')"></div>
+                <span class="toggle-label">Broadcast SSID (visible)</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveHotspotConfig()"><i class="fas fa-floppy-disk"></i> Apply Changes</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><i class="fas fa-users"></i><h3>Guest Network</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Enable Guest Network</label>
+              <div class="toggle-wrap">
+                <div class="toggle on" id="toggleGuest" onclick="this.classList.toggle('on')"></div>
+                <span class="toggle-label">VPN-isolated guest segment</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Guest SSID</label>
+              <input class="form-input" value="NovaMesh-Guest">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Guest Password</label>
+              <input class="form-input" type="password" value="GuestPass2024">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Guest Speed Limit</label>
+              <select class="form-select">
+                <option>5 Mbps</option>
+                <option selected>10 Mbps</option>
+                <option>25 Mbps</option>
+                <option>Unlimited</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Isolate from Main Network</label>
+              <div class="toggle-wrap">
+                <div class="toggle on"></div>
+                <span class="toggle-label">Prevent guest-to-host access</span>
+              </div>
+            </div>
+            <button class="btn btn-primary"><i class="fas fa-floppy-disk"></i> Save Guest Config</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ DNS PAGE ══ -->
+    <div id="page-dns" class="content">
+      <div class="section-header">
+        <h2>DNS & Network</h2>
+        <span class="section-tag">ROUTING</span>
+      </div>
+      <div class="card mb-6">
+        <div class="card-header"><i class="fas fa-server"></i><h3>DNS Server</h3></div>
+        <div class="card-body">
+          <div class="grid-3" style="gap: 12px; margin-bottom: 1.2rem;" id="dnsGrid">
+            <div class="dns-option selected" onclick="selectDNS(this,'8.8.8.8','8.8.4.4')">
+              <div class="dns-icon" style="background:rgba(66,133,244,0.1); color:#4285f4; font-size: 1.2rem;">G</div>
+              <div><div class="dns-name">Google DNS</div><div class="dns-addr">8.8.8.8 / 8.8.4.4</div></div>
+            </div>
+            <div class="dns-option" onclick="selectDNS(this,'1.1.1.1','1.0.0.1')">
+              <div class="dns-icon" style="background:rgba(255,100,0,0.1); color:#ff6400;">☁</div>
+              <div><div class="dns-name">Cloudflare</div><div class="dns-addr">1.1.1.1 / 1.0.0.1</div></div>
+            </div>
+            <div class="dns-option" onclick="selectDNS(this,'9.9.9.9','149.112.112.112')">
+              <div class="dns-icon" style="background:rgba(100,200,100,0.1); color:#64c864;">◆</div>
+              <div><div class="dns-name">Quad9</div><div class="dns-addr">9.9.9.9 (malware filter)</div></div>
+            </div>
+            <div class="dns-option" onclick="selectDNS(this,'208.67.222.222','208.67.220.220')">
+              <div class="dns-icon" style="background:rgba(255,200,50,0.1); color:#ffc832; font-size: 1.1rem;">◉</div>
+              <div><div class="dns-name">OpenDNS</div><div class="dns-addr">208.67.222.222</div></div>
+            </div>
+            <div class="dns-option" onclick="selectDNS(this,'94.140.14.14','94.140.15.15')">
+              <div class="dns-icon" style="background:rgba(155,92,255,0.1); color:var(--purple);">🛡</div>
+              <div><div class="dns-name">AdGuard DNS</div><div class="dns-addr">94.140.14.14 (ad-block)</div></div>
+            </div>
+            <div class="dns-option" onclick="toggleCustomDNS(this)">
+              <div class="dns-icon" style="background:var(--cyan-dim); color:var(--cyan);">✎</div>
+              <div><div class="dns-name">Custom</div><div class="dns-addr">Enter manually</div></div>
+            </div>
+          </div>
+
+          <div id="customDNSForm" style="display:none; margin-top: 1rem;">
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Primary DNS</label>
+                <input class="form-input" placeholder="e.g. 192.168.1.1">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Secondary DNS</label>
+                <input class="form-input" placeholder="e.g. 8.8.8.8">
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary btn-sm" onclick="saveDNS()"><i class="fas fa-check"></i> Apply DNS</button>
+            <button class="btn btn-sm" style="border-color: var(--border-dim); color: var(--text-secondary);" onclick="flushDNS()"><i class="fas fa-rotate"></i> Flush Cache</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fas fa-network-wired"></i><h3>IP & DHCP</h3></div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div>
+              <div class="form-group">
+                <label class="form-label">Gateway IP (This Device)</label>
+                <input class="form-input" value="192.168.43.1" readonly style="opacity: 0.6;">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Subnet Mask</label>
+                <input class="form-input" value="255.255.255.0" readonly style="opacity: 0.6;">
+              </div>
+            </div>
+            <div>
+              <div class="form-group">
+                <label class="form-label">DHCP Range Start</label>
+                <input class="form-input" value="192.168.43.10">
+              </div>
+              <div class="form-group">
+                <label class="form-label">DHCP Range End</label>
+                <input class="form-input" value="192.168.43.254">
+              </div>
+            </div>
+          </div>
+          <div style="padding: 10px 14px; background: rgba(0,200,255,0.04); border: 1px solid var(--border-dim); border-radius: 8px; font-family: var(--font-mono); font-size: 0.73rem; color: var(--text-secondary);">
+            ⚠ Full DHCP control requires root access or VPN-mode. Gateway IP is determined by the Android OS.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECURITY PAGE ══ -->
+    <div id="page-security" class="content">
+      <div class="section-header">
+        <h2>Security</h2>
+        <span class="section-tag">FIREWALL</span>
+      </div>
+      <div class="grid-2 mb-6">
+        <div class="card">
+          <div class="card-header"><i class="fas fa-shield-halved"></i><h3>Security Status</h3></div>
+          <div id="securityStatus">
+            <div class="security-item">
+              <div class="security-icon safe"><i class="fas fa-key"></i></div>
+              <div class="security-text">
+                <div class="security-title">WPA3 Encryption</div>
+                <div class="security-desc">Strong encryption enabled</div>
+              </div>
+              <span class="badge allowed">ACTIVE</span>
+            </div>
+            <div class="security-item">
+              <div class="security-icon safe"><i class="fas fa-user-lock"></i></div>
+              <div class="security-text">
+                <div class="security-title">Admin Authentication</div>
+                <div class="security-desc">Firebase Auth protecting panel</div>
+              </div>
+              <span class="badge allowed">ACTIVE</span>
+            </div>
+            <div class="security-item">
+              <div class="security-icon warn"><i class="fas fa-fire-flame-curved"></i></div>
+              <div class="security-text">
+                <div class="security-title">Firewall Rules</div>
+                <div class="security-desc">3 custom rules (VPN-based)</div>
+              </div>
+              <span class="badge limited">PARTIAL</span>
+            </div>
+            <div class="security-item">
+              <div class="security-icon safe"><i class="fas fa-globe"></i></div>
+              <div class="security-text">
+                <div class="security-title">DNS Filtering</div>
+                <div class="security-desc">AdGuard DNS blocking ads</div>
+              </div>
+              <span class="badge allowed">ON</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><i class="fas fa-list-check"></i><h3>Access Control</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Mode</label>
+              <select class="form-select" id="aclMode" onchange="updateACLMode()">
+                <option value="open">Open — All devices allowed</option>
+                <option value="allowlist">Allowlist — Only approved MACs</option>
+                <option value="blocklist">Blocklist — Block specific MACs</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Add MAC Address</label>
+              <div style="display: flex; gap: 8px;">
+                <input class="form-input" id="newMAC" placeholder="AA:BB:CC:DD:EE:FF" style="flex:1;">
+                <button class="btn btn-primary btn-sm" onclick="addMAC()"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+            <div id="macList" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><i class="fas fa-clock"></i><h3>Parental Controls / Time-Based Access</h3></div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Select Device</label>
+              <select class="form-select" id="parentalDevice">
+                <option>Riya's Phone (192.168.43.24)</option>
+                <option>Kids Tablet (192.168.43.31)</option>
+                <option>Smart TV (192.168.43.55)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Enable Schedule</label>
+              <div class="toggle-wrap mt-4">
+                <div class="toggle on"></div>
+                <span class="toggle-label">Time-based blocking ON</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Block From</label>
+              <input class="form-input" type="time" value="22:00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Block Until</label>
+              <input class="form-input" type="time" value="07:00">
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="showToast('Parental rule saved', 'success')"><i class="fas fa-floppy-disk"></i> Save Schedule</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ LOGS PAGE ══ -->
+    <div id="page-logs" class="content">
+      <div class="section-header">
+        <h2>System Logs</h2>
+        <span class="section-tag">TERMINAL</span>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-terminal"></i>
+          <h3>Event Log</h3>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-sm" style="border-color: var(--border-dim); color: var(--text-secondary);" onclick="clearLog()">Clear</button>
+            <button class="btn btn-primary btn-sm">Export</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="log-terminal" id="fullLog" style="height: 400px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS PAGE ══ -->
+    <div id="page-settings" class="content">
+      <div class="section-header">
+        <h2>Settings</h2>
+        <span class="section-tag">SYSTEM</span>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><i class="fas fa-user-gear"></i><h3>Admin Account</h3></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Display Name</label>
+              <input class="form-input" value="Admin" id="adminName">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" value="admin@novamesh.local" readonly style="opacity:0.6;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input class="form-input" type="password" placeholder="Leave blank to keep current">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="showToast('Settings saved', 'success')"><i class="fas fa-floppy-disk"></i> Save</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><i class="fas fa-microchip"></i><h3>System Info</h3></div>
+          <div class="card-body">
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.8rem; font-family: var(--font-mono);">
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-dim);">
+                <span style="color: var(--text-secondary);">App Version</span>
+                <span style="color: var(--cyan);">NovaMesh v2.1.0</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-dim);">
+                <span style="color: var(--text-secondary);">Server Port</span>
+                <span style="color: var(--cyan);">:8080</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-dim);">
+                <span style="color: var(--text-secondary);">Gateway IP</span>
+                <span style="color: var(--cyan);" id="gatewayIP">192.168.43.1</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-dim);">
+                <span style="color: var(--text-secondary);">Firebase</span>
+                <span style="color: var(--green);">Connected ✓</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                <span style="color: var(--text-secondary);">Uptime</span>
+                <span style="color: var(--text-primary);" id="uptimeDisplay">00:00:00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><i class="fas fa-bell"></i><h3>Notifications</h3></div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 14px;">
+            <div class="toggle-wrap" style="justify-content: space-between;">
+              <span class="toggle-label" style="color: var(--text-primary);">New device connected</span>
+              <div class="toggle on"></div>
+            </div>
+            <div class="toggle-wrap" style="justify-content: space-between;">
+              <span class="toggle-label" style="color: var(--text-primary);">Device blocked</span>
+              <div class="toggle on"></div>
+            </div>
+            <div class="toggle-wrap" style="justify-content: space-between;">
+              <span class="toggle-label" style="color: var(--text-primary);">High bandwidth usage</span>
+              <div class="toggle on"></div>
+            </div>
+            <div class="toggle-wrap" style="justify-content: space-between;">
+              <span class="toggle-label" style="color: var(--text-primary);">Hotspot status change</span>
+              <div class="toggle on"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border-color: rgba(255,61,107,0.15);">
+          <div class="card-header"><i class="fas fa-triangle-exclamation" style="color:var(--red);"></i><h3>Danger Zone</h3></div>
+          <div class="card-body" style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn btn-danger" onclick="showToast('Hotspot restarted', 'info')"><i class="fas fa-rotate"></i> Restart Hotspot Service</button>
+            <button class="btn btn-danger" onclick="showToast('Config reset to defaults', 'info')"><i class="fas fa-trash-can"></i> Reset All Settings</button>
+            <button class="btn btn-danger" onclick="showToast('All devices kicked', 'info')"><i class="fas fa-user-xmark"></i> Disconnect All Devices</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ══════════════════ SCRIPTS ══════════════════ -->
+<script>
+// ─── MOCK DATA ───────────────────────────────────
+const ADMIN_EMAIL = 'admin@novamesh.local';
+const ADMIN_PASS  = 'nova2024';
+
+const mockDevices = [
+  { id: 1, name: "Shanudha's Phone", mac: "A4:2B:8C:D1:E3:F2", ip: "192.168.43.24", type: "phone",  signal: 4, usage: "482 MB", status: "allowed" },
+  { id: 2, name: "Riya's Laptop",   mac: "B8:27:EB:6A:2C:F0", ip: "192.168.43.31", type: "laptop", signal: 3, usage: "1.1 GB", status: "allowed" },
+  { id: 3, name: "Smart TV",         mac: "DC:A6:32:7F:9B:44", ip: "192.168.43.55", type: "unknown", signal: 2, usage: "102 MB", status: "limited" },
+  { id: 4, name: "Guest Device",     mac: "F0:18:98:E2:3C:A7", ip: "192.168.43.78", type: "phone",  signal: 3, usage: "38 MB",  status: "allowed" },
+];
+
+const logEntries = [
+  { time: "12:34:02", cls: "connect", msg: "Device connected: Shanudha's Phone (192.168.43.24)" },
+  { time: "12:31:55", cls: "info",    msg: "DNS changed to Google (8.8.8.8)" },
+  { time: "12:29:10", cls: "connect", msg: "Device connected: Smart TV (192.168.43.55)" },
+  { time: "12:26:33", cls: "info",    msg: "Hotspot started: NovaMesh-5G on Ch.36" },
+  { time: "12:25:00", cls: "info",    msg: "NovaMesh service started" },
+  { time: "12:24:58", cls: "warn",    msg: "Battery saver mode detected — performance may vary" },
+  { time: "12:22:11", cls: "block",   msg: "Blocked device attempted connection: CC:FF:00:12:34:56" },
+];
+
+let hotspotActive = true;
+let uptimeSeconds = 0;
+let bwData = { down: [], up: [] };
+
+// Seed bandwidth history
+for(let i = 0; i < 20; i++) {
+  bwData.down.push(Math.random() * 30 + 5);
+  bwData.up.push(Math.random() * 12 + 1);
+}
+
+// ─── AUTH ──────────────────────────────────────
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const err   = document.getElementById('loginError');
+
+  // Demo: check hardcoded or accept any non-empty
+  if (email === ADMIN_EMAIL && pass === ADMIN_PASS) {
+    err.style.display = 'none';
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('app').classList.add('visible');
+    initApp();
+  } else {
+    err.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('loginEmail').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout() {
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+// ─── NAVIGATION ──────────────────────────────
+function switchPage(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const page = el.dataset.page;
+  document.getElementById('page-' + page).classList.add('active');
+  const titles = { dashboard:'Dashboard', devices:'Device Management', traffic:'Traffic Analysis',
+                   hotspot:'Hotspot Config', dns:'DNS & Network', security:'Security',
+                   logs:'System Logs', settings:'Settings' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  if(page === 'devices') renderFullDeviceList();
+  if(page === 'traffic') renderTrafficPage();
+  if(page === 'security') renderMACList();
+  if(page === 'logs') renderFullLog();
+}
+
+// ─── HOTSPOT TOGGLE ──────────────────────────
+function toggleHotspot() {
+  hotspotActive = !hotspotActive;
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if(hotspotActive) {
+    dot.classList.remove('off');
+    txt.style.color = 'var(--green)';
+    txt.textContent = 'ACTIVE';
+    addLog('info', 'Hotspot enabled: NovaMesh-5G');
+    showToast('Hotspot activated', 'success');
+  } else {
+    dot.classList.add('off');
+    txt.style.color = 'var(--red)';
+    txt.textContent = 'OFFLINE';
+    addLog('warn', 'Hotspot disabled by admin');
+    showToast('Hotspot disabled', 'error');
+  }
+  // Notify Android via API
+  fetch('/api/hotspot/' + (hotspotActive ? 'enable' : 'disable'), { method: 'POST' }).catch(()=>{});
+}
+
+// ─── CLOCK ────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('topbarTime').textContent =
+    now.toTimeString().split(' ')[0];
+  uptimeSeconds++;
+  const h = String(Math.floor(uptimeSeconds/3600)).padStart(2,'0');
+  const m = String(Math.floor((uptimeSeconds%3600)/60)).padStart(2,'0');
+  const s = String(uptimeSeconds%60).padStart(2,'0');
+  const ud = document.getElementById('uptimeDisplay');
+  if(ud) ud.textContent = `${h}:${m}:${s}`;
+}
+
+// ─── BANDWIDTH SIMULATION ─────────────────────
+function updateBandwidth() {
+  const down = Math.random() * 35 + 3;
+  const up   = Math.random() * 15 + 0.5;
+  bwData.down.push(down); if(bwData.down.length > 20) bwData.down.shift();
+  bwData.up.push(up);     if(bwData.up.length > 20)   bwData.up.shift();
+
+  document.getElementById('statDown').textContent = down.toFixed(1);
+  document.getElementById('statUp').textContent   = up.toFixed(1);
+
+  drawBWChart();
+
+  // ring
+  const load = Math.min(100, Math.round((down/50)*100));
+  const offset = 283 - (283 * load / 100);
+  document.getElementById('ringFill').style.strokeDashoffset = offset;
+  document.getElementById('ringPct').textContent = load + '%';
+}
+
+function drawBWChart() {
+  const canvas = document.getElementById('bwChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width  = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  const W = canvas.width, H = canvas.height;
+  const maxVal = Math.max(...bwData.down, ...bwData.up, 40);
+
+  ctx.clearRect(0,0,W,H);
+
+  function drawLine(data, color) {
+    ctx.beginPath();
+    data.forEach((v,i) => {
+      const x = (i / (data.length-1)) * W;
+      const y = H - (v / maxVal) * H;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // fill
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fillStyle = color.replace(')', ',0.08)').replace('rgb','rgba').replace('#','').includes('rgba') 
+      ? color.replace(')', ',0.08)') 
+      : (color === '#00c8ff' ? 'rgba(0,200,255,0.07)' : 'rgba(155,92,255,0.07)');
+    ctx.fill();
+  }
+
+  drawLine(bwData.down, '#00c8ff');
+  drawLine(bwData.up,   '#9b5cff');
+}
+
+// ─── DEVICE RENDERING ────────────────────────
+const typeIcons = { phone:'fa-mobile-screen', laptop:'fa-laptop', tablet:'fa-tablet-screen-button', unknown:'fa-question' };
+
+function renderDashDevices() {
+  const el = document.getElementById('dashDeviceList');
+  if(!el) return;
+  el.innerHTML = mockDevices.slice(0,3).map(d => `
+    <div style="display: flex; align-items: center; gap: 12px; padding: 0.8rem 1.3rem; border-bottom: 1px solid var(--border-dim);">
+      <div class="device-avatar ${d.type}"><i class="fas ${typeIcons[d.type]||'fa-question'}"></i></div>
+      <div style="flex:1;">
+        <div class="device-name">${d.name}</div>
+        <div class="device-mac">${d.ip}</div>
+      </div>
+      <span class="badge ${d.status}">${d.status.toUpperCase()}</span>
+    </div>
+  `).join('');
+}
+
+function renderFullDeviceList() {
+  const el = document.getElementById('fullDeviceList');
+  if(!el) return;
+  document.getElementById('deviceCountTag').textContent = mockDevices.length + ' ONLINE';
+  document.getElementById('navDeviceCount').textContent = mockDevices.length;
+  document.getElementById('statDevices').textContent   = mockDevices.length;
+  el.innerHTML = mockDevices.map((d,i) => `
+    <div class="device-row" style="animation-delay:${i*0.07}s">
+      <div class="device-avatar ${d.type}"><i class="fas ${typeIcons[d.type]||'fa-question'}"></i></div>
+      <div>
+        <div class="device-name">${d.name}</div>
+        <div class="device-mac">${d.mac}</div>
+      </div>
+      <div class="signal-dots">
+        ${[1,2,3,4].map(s => `<div class="signal-dot ${s<=d.signal?'lit':''}"></div>`).join('')}
+        <span style="margin-left:6px; font-size:0.7rem; font-family:var(--font-mono); color:var(--text-secondary);">${['','25','50','75','100'][d.signal]}%</span>
+      </div>
+      <div class="device-usage">${d.usage}</div>
+      <div class="device-ip">${d.ip}</div>
+      <div class="device-actions">
+        <button class="action-btn block" onclick="blockDevice(${d.id})">BLOCK</button>
+        <button class="action-btn limit" onclick="limitDevice(${d.id})">LIMIT</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function blockDevice(id) {
+  const d = mockDevices.find(x=>x.id===id);
+  if(!d) return;
+  d.status = d.status === 'blocked' ? 'allowed' : 'blocked';
+  addLog('block', `Device ${d.status === 'blocked' ? 'blocked' : 'unblocked'}: ${d.name} (${d.mac})`);
+  showToast(`${d.name} ${d.status === 'blocked' ? 'blocked' : 'unblocked'}`, d.status === 'blocked' ? 'error' : 'success');
+  renderFullDeviceList();
+  fetch('/api/device/block', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({mac: d.mac, blocked: d.status==='blocked'}) }).catch(()=>{});
+}
+
+function limitDevice(id) {
+  const d = mockDevices.find(x=>x.id===id);
+  if(!d) return;
+  d.status = 'limited';
+  showToast(`${d.name} speed limited to 5 Mbps`, 'info');
+  addLog('warn', `Bandwidth limited: ${d.name} → 5 Mbps`);
+  renderFullDeviceList();
+}
+
+// ─── TRAFFIC PAGE ─────────────────────────────
+function renderTrafficPage() {
+  const heights = [30,45,60,85,70,40,90,100,75,55,65,80];
+  const hours   = ['12a','1a','2a','3a','4a','5a','6a','7a','8a','9a','10a','11a'];
+  const barsEl  = document.getElementById('hourlyBars');
+  const labsEl  = document.getElementById('hourlyLabels');
+  if(barsEl) barsEl.innerHTML = heights.map(h => `<div style="flex:1; height:${h}%; background: linear-gradient(to top, rgba(0,200,255,0.08), rgba(0,200,255,0.35)); border-top: 2px solid var(--cyan); border-radius: 3px 3px 0 0; transition: height 0.4s;"></div>`).join('');
+  if(labsEl) labsEl.innerHTML = hours.map(h => `<div style="flex:1; text-align:center; font-size:0.62rem; font-family:var(--font-mono); color:var(--text-muted);">${h}</div>`).join('');
+
+  const perEl = document.getElementById('perDeviceUsage');
+  if(perEl) perEl.innerHTML = mockDevices.map(d => {
+    const pct = {482:32,1100:74,102:7,38:3}[parseInt(d.usage)] || Math.floor(Math.random()*80+5);
+    return `
+      <div style="display:flex; align-items:center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-dim);">
+        <div class="device-avatar ${d.type}" style="width:28px;height:28px;font-size:12px;"><i class="fas ${typeIcons[d.type]}"></i></div>
+        <span style="flex:1; font-size:0.82rem;">${d.name}</span>
+        <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary); min-width:60px; text-align:right;">${d.usage}</span>
+        <div style="width: 120px; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+          <div style="width:${pct}%; height:100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); border-radius: 3px;"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── LOG SYSTEM ───────────────────────────────
+let allLogs = [...logEntries];
+function addLog(cls, msg) {
+  const now = new Date();
+  const time = now.toTimeString().split(' ')[0];
+  allLogs.unshift({ time, cls, msg });
+  if(allLogs.length > 100) allLogs.pop();
+  renderDashLog();
+  renderFullLog();
+}
+
+function renderDashLog() {
+  const el = document.getElementById('dashLog');
+  if(!el) return;
+  el.innerHTML = allLogs.slice(0,8).map(e => `
+    <div class="log-entry"><span class="time">${e.time}</span><span class="${e.cls}">${e.msg}</span></div>
+  `).join('');
+}
+function renderFullLog() {
+  const el = document.getElementById('fullLog');
+  if(!el) return;
+  el.innerHTML = allLogs.map(e => `
+    <div class="log-entry"><span class="time">${e.time}</span><span class="${e.cls}">${e.msg}</span></div>
+  `).join('');
+}
+function clearLog() { allLogs = []; renderDashLog(); renderFullLog(); showToast('Log cleared', 'info'); }
+
+// ─── DNS ──────────────────────────────────────
+function selectDNS(el, primary, secondary) {
+  document.querySelectorAll('.dns-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('customDNSForm').style.display = 'none';
+}
+function toggleCustomDNS(el) {
+  document.querySelectorAll('.dns-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('customDNSForm').style.display = 'block';
+}
+function saveDNS() {
+  showToast('DNS settings applied', 'success');
+  addLog('info', 'DNS updated');
+  fetch('/api/dns', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({primary:'8.8.8.8', secondary:'8.8.4.4'}) }).catch(()=>{});
+}
+function flushDNS() { showToast('DNS cache flushed', 'info'); addLog('info', 'DNS cache flushed'); }
+
+// ─── HOTSPOT CONFIG ────────────────────────────
+function saveHotspotConfig() {
+  const ssid = document.getElementById('cfgSSID').value;
+  document.getElementById('topbarSSID').textContent = ssid;
+  showToast('Hotspot config applied. Restarting...', 'success');
+  addLog('info', `Hotspot config updated: SSID=${ssid}`);
+  fetch('/api/hotspot/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ssid, band: document.getElementById('cfgBand').value }) }).catch(()=>{});
+}
+
+// ─── MAC LIST ─────────────────────────────────
+let macList = [];
+function addMAC() {
+  const val = document.getElementById('newMAC').value.trim();
+  if(!val) return;
+  macList.push(val);
+  document.getElementById('newMAC').value = '';
+  renderMACList();
+  showToast(`MAC ${val} added to list`, 'success');
+}
+function renderMACList() {
+  const el = document.getElementById('macList');
+  if(!el) return;
+  if(macList.length === 0) { el.innerHTML = `<div style="color:var(--text-muted); font-size:0.75rem; font-family:var(--font-mono); padding:8px 0;">No entries. Add a MAC above.</div>`; return; }
+  el.innerHTML = macList.map((m,i) => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; background: rgba(0,200,255,0.03); border: 1px solid var(--border-dim); border-radius: 7px; font-family: var(--font-mono); font-size: 0.78rem;">
+      <span style="color:var(--cyan);">${m}</span>
+      <button onclick="removeMAC(${i})" style="background:none; border:none; color:var(--red); cursor:pointer; font-size:0.8rem;">✕</button>
+    </div>`).join('');
+}
+function removeMAC(i) { macList.splice(i,1); renderMACList(); }
+
+// ─── TOAST ────────────────────────────────────
+function showToast(msg, type='info') {
+  const c = document.getElementById('toastContainer');
+  const icons = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<i class="fas ${icons[type]}"></i> ${msg}`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(20px)'; t.style.transition='0.3s'; setTimeout(()=>t.remove(), 300); }, 3000);
+}
+
+// ─── INIT ─────────────────────────────────────
+function initApp() {
+  renderDashDevices();
+  renderDashLog();
+  updateBandwidth();
+  drawBWChart();
+
+  setInterval(updateClock, 1000);
+  setInterval(updateBandwidth, 2000);
+
+  // Simulate occasional new log entries
+  setInterval(() => {
+    const msgs = [
+      ['info', 'Heartbeat OK — all services running'],
+      ['connect', `Device ping: ${mockDevices[Math.floor(Math.random()*mockDevices.length)].name}`],
+      ['warn', 'High bandwidth spike detected'],
+    ];
+    const e = msgs[Math.floor(Math.random()*msgs.length)];
+    addLog(e[0], e[1]);
+  }, 8000);
+
+  // Poll Android API for real device data
+  setInterval(() => {
+    fetch('/api/devices').then(r => r.json()).then(data => {
+      if(data && Array.isArray(data)) {
+        // update mockDevices from real API in production
+      }
+    }).catch(()=>{});
+  }, 5000);
+}
+
+updateClock();
+window.addEventListener('resize', drawBWChart);
+</script>
+</body>
+</html>

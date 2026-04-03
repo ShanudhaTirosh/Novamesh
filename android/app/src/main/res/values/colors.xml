@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NovaMesh Cyberpunk Palette -->
+    <color name="nm_background">#FF03080F</color>
+    <color name="nm_card">#FF0A1929</color>
+    <color name="nm_accent">#FF00C8FF</color>
+    <color name="nm_text">#FFD0E8F8</color>
+    <color name="nm_secondary">#FF6B8CA8</color>
+    <color name="nm_success">#FF00FF88</color>
+    <color name="nm_error">#FFFF3355</color>
+
+    <!-- Standard Material aliases -->
+    <color name="colorPrimary">@color/nm_accent</color>
+    <color name="colorPrimaryDark">@color/nm_background</color>
+    <color name="colorAccent">@color/nm_accent</color>
+    <color name="colorSurface">@color/nm_card</color>
+    <color name="colorOnPrimary">@color/nm_background</color>
+</resources>

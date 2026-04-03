@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "963944279313",
+    "firebase_url": "https://novamesh-febd6-default-rtdb.firebaseio.com",
+    "project_id": "novamesh-febd6",
+    "storage_bucket": "novamesh-febd6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:963944279313:android:955f29f13c163c436af0b0",
+        "android_client_info": {
+          "package_name": "com.novamesh.hotspot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "963944279313-kjsl4ne7d4h69m9r1gj1ufb1icimv32i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbSqp9b7wrRuxpHRTOhb2ezBI5in5ZLHE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "963944279313-kjsl4ne7d4h69m9r1gj1ufb1icimv32i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

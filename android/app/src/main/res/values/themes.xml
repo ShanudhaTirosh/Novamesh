@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NovaMesh" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nm_accent</item>
+        <item name="colorPrimaryVariant">@color/nm_background</item>
+        <item name="colorOnPrimary">@color/nm_background</item>
+        <item name="colorSecondary">@color/nm_secondary</item>
+        <item name="colorOnSecondary">@color/nm_background</item>
+        <item name="colorSurface">@color/nm_card</item>
+        <item name="colorOnSurface">@color/nm_text</item>
+        <item name="android:colorBackground">@color/nm_background</item>
+        <item name="android:statusBarColor">@color/nm_background</item>
+        <item name="android:navigationBarColor">@color/nm_background</item>
+        <item name="android:windowBackground">@color/nm_background</item>
+    </style>
+</resources>
