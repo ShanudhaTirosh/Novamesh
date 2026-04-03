@@ -141,7 +141,7 @@ class FirebaseManager(private val context: Context, private val offline: Boolean
                     ))
                 } catch (e: Exception) { Log.e(TAG, "RT config parse error: ${e.message}") }
             }
-            override fun onCancelled(e: DatabaseError) = Log.w(TAG, "RT sync cancelled: ${e.message}")
+            override fun onCancelled(e: DatabaseError) { Log.w(TAG, "RT sync cancelled: ${e.message}") }
         }
         try {
             db.child("realtime/$uid/remote_config").addValueEventListener(configListener!!)
