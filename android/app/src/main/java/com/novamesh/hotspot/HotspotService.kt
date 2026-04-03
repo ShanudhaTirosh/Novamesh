@@ -139,8 +139,8 @@ class HotspotService : Service() {
                     Log.i(TAG, "LocalOnlyHotspot started: $ssid")
                     updateNotification("Local Hotspot · $ssid · (no Internet sharing)")
                 }
-                override fun onStopped() = Log.i(TAG, "LocalOnlyHotspot stopped")
-                override fun onFailed(reason: Int) = Log.e(TAG, "Hotspot failed: $reason")
+                override fun onStopped() { Log.i(TAG, "LocalOnlyHotspot stopped") }
+                override fun onFailed(reason: Int) { Log.e(TAG, "Hotspot failed: $reason") }
             })
         }
     }
