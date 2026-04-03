@@ -17,12 +17,10 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// allprojects { repositories {} } removed —
+// settings.gradle already declares google() + mavenCentral()
+// under FAIL_ON_PROJECT_REPOS mode, re-declaring them here
+// causes a build failure.
 
 task clean(type: Delete) {
     delete rootProject.buildDir
