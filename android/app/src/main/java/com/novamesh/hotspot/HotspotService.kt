@@ -9,6 +9,11 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import fi.iki.elonen.NanoHTTPD
 
 /**
@@ -27,9 +32,7 @@ import fi.iki.elonen.NanoHTTPD
  */
 class HotspotService : Service() {
 
-    private val serviceScope = kotlinx.coroutines.CoroutineScope(
-        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
-    )
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         private const val TAG             = "NovaMesh:HotspotService"
@@ -298,3 +301,4 @@ class HotspotService : Service() {
         Log.d(TAG, "WakeLock released")
     }
 }
+
