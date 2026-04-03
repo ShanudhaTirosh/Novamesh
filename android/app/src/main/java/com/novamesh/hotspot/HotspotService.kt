@@ -27,6 +27,10 @@ import fi.iki.elonen.NanoHTTPD
  */
 class HotspotService : Service() {
 
+    private val serviceScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
+
     companion object {
         private const val TAG             = "NovaMesh:HotspotService"
         private const val NOTIFICATION_ID = 1001
@@ -81,12 +85,15 @@ class HotspotService : Service() {
 
         // Default: start everything
         startForeground(NOTIFICATION_ID, buildNotification("Starting NovaMesh…"))
-        launchServices()
+        // launchServices() does disk I/O, network, and system calls — must NOT
+        // run on the main thread (onStartCommand is called on main thread).
+        serviceScope.launch { launchServices() }
         return START_STICKY
     }
 
     override fun onDestroy() {
         Log.i(TAG, "Service destroying — cleaning up")
+        serviceScope.cancel()
         stopAllServices()
         releaseWakeLock()
         super.onDestroy()
@@ -139,8 +146,8 @@ class HotspotService : Service() {
                     Log.i(TAG, "LocalOnlyHotspot started: $ssid")
                     updateNotification("Local Hotspot · $ssid · (no Internet sharing)")
                 }
-                override fun onStopped() { Log.i(TAG, "LocalOnlyHotspot stopped") }
-                override fun onFailed(reason: Int) { Log.e(TAG, "Hotspot failed: $reason") }
+                override fun onStopped() = Log.i(TAG, "LocalOnlyHotspot stopped")
+                override fun onFailed(reason: Int) = Log.e(TAG, "Hotspot failed: $reason")
             })
         }
     }
