@@ -10,80 +10,66 @@ import com.google.firebase.firestore.FirebaseFirestore
 /**
  * NovaMesh Firebase Manager
  *
- * Handles:
- *  - Firebase Authentication (email/password)
- *  - Firestore: storing hotspot config, device profiles, access rules
- *  - Realtime Database: live device list, bandwidth stats
- *
- * Firestore Schema:
- * ┌─ users/{uid}/
- * │   ├─ config/          ← hotspot settings
- * │   ├─ devices/         ← known device profiles
- * │   └─ rules/           ← ACL rules, parental controls
- * └─ realtime/{uid}/
- *     ├─ devices/         ← live connected device list
- *     └─ stats/           ← bandwidth counters
+ * FIX: Added `offline` constructor parameter.
+ * When offline=true, all Firebase calls are no-ops — the service and activity
+ * can safely create FirebaseManager even if Firebase services are not configured.
+ * This prevents crashes when:
+ *  - Realtime Database URL is missing from google-services.json
+ *  - Firebase Auth user doesn't exist yet
+ *  - No internet connection
  */
-class FirebaseManager(private val context: Context) {
+class FirebaseManager(private val context: Context, private val offline: Boolean = false) {
 
-    companion object {
-        private const val TAG = "NovaMesh:Firebase"
-    }
+    companion object { private const val TAG = "NovaMesh:Firebase" }
 
-    private val auth       = FirebaseAuth.getInstance()
-    private val firestore  = FirebaseFirestore.getInstance()
-    private val realtimeDB = FirebaseDatabase.getInstance().reference
+    // All instances are nullable — if init throws, we stay in offline mode
+    private val auth      : FirebaseAuth?       = if (offline) null else tryGet { FirebaseAuth.getInstance() }
+    private val firestore : FirebaseFirestore?  = if (offline) null else tryGet { FirebaseFirestore.getInstance() }
+    private val realtimeDB: DatabaseReference? = if (offline) null else tryGet { FirebaseDatabase.getInstance().reference }
+
     private var configListener: ValueEventListener? = null
-    private var currentUser: FirebaseUser? = auth.currentUser
+    private var currentUser: FirebaseUser? = auth?.currentUser
 
-    // ────────────────────────────────────────────
-    //  Authentication
-    // ────────────────────────────────────────────
+    init {
+        if (offline) Log.i(TAG, "FirebaseManager running in offline/fallback mode")
+        else Log.i(TAG, "FirebaseManager initialized (auth=${auth != null}, db=${realtimeDB != null})")
+    }
 
-    fun signIn(
-        email: String,
-        password: String,
-        onSuccess: (FirebaseUser) -> Unit,
-        onError: (Exception) -> Unit
-    ) {
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnSuccessListener { result ->
-                currentUser = result.user
-                Log.i(TAG, "Signed in: ${result.user?.email}")
-                result.user?.let { onSuccess(it) }
+    private fun <T> tryGet(block: () -> T): T? = try { block() }
+    catch (e: Exception) {
+        Log.w(TAG, "Firebase component init failed: ${e.message}")
+        null
+    }
+
+    // ── Auth ───────────────────────────────────────────────────────────────
+
+    fun signIn(email: String, password: String,
+               onSuccess: (FirebaseUser) -> Unit,
+               onError: (Exception) -> Unit) {
+        val a = auth
+        if (a == null) {
+            onError(IllegalStateException("Firebase Auth not available"))
+            return
+        }
+        a.signInWithEmailAndPassword(email, password)
+            .addOnSuccessListener { r ->
+                currentUser = r.user
+                r.user?.let { onSuccess(it) }
+                    ?: onError(IllegalStateException("Auth returned null user"))
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Sign-in failed: ${e.message}")
-                onError(e)
-            }
+            .addOnFailureListener { onError(it) }
     }
 
-    fun signOut() {
-        auth.signOut()
-        currentUser = null
-    }
+    fun signOut()    { try { auth?.signOut(); currentUser = null } catch (_: Exception) {} }
+    fun isSignedIn() = auth?.currentUser != null
+    fun currentUser()= auth?.currentUser
+    private fun uid()= auth?.currentUser?.uid
 
-    fun isSignedIn() = auth.currentUser != null
+    // ── Firestore Config ───────────────────────────────────────────────────
 
-    fun getCurrentUser() = auth.currentUser
-
-    fun generateSessionToken(): String {
-        // Returns Firebase ID token for use as X-Auth-Token in web UI
-        var token = ""
-        auth.currentUser?.getIdToken(false)
-            ?.addOnSuccessListener { result -> token = result.token ?: "" }
-        return token
-    }
-
-    // ────────────────────────────────────────────
-    //  Firestore: Config Sync
-    // ────────────────────────────────────────────
-
-    /**
-     * Push local config to Firestore
-     */
     fun syncConfig(config: HotspotConfig) {
-        val uid = currentUser?.uid ?: return
+        val uid = uid() ?: return
+        val fs  = firestore ?: return
         val data = mapOf(
             "ssid"          to config.ssid,
             "band"          to config.band,
@@ -92,137 +78,92 @@ class FirebaseManager(private val context: Context) {
             "dns_secondary" to config.dnsSecondary,
             "guest_enabled" to config.guestEnabled,
             "guest_ssid"    to config.guestSSID,
-            "acl_mode"      to config.aclMode,
-            "updated_at"    to com.google.firebase.Timestamp.now()
+            "acl_mode"      to config.aclMode
         )
-        firestore.collection("users")
-            .document(uid)
-            .collection("config")
-            .document("hotspot")
+        fs.collection("users/$uid/config").document("hotspot")
             .set(data)
-            .addOnSuccessListener { Log.i(TAG, "Config synced to Firestore") }
-            .addOnFailureListener { Log.e(TAG, "Config sync failed: ${it.message}") }
+            .addOnSuccessListener { Log.i(TAG, "Config synced") }
+            .addOnFailureListener { Log.w(TAG, "Config sync failed: ${it.message}") }
     }
 
-    /**
-     * Load config from Firestore (called on first launch if no local config)
-     */
     fun loadRemoteConfig(onLoaded: (HotspotConfig) -> Unit) {
-        val uid = currentUser?.uid ?: return
-        firestore.collection("users")
-            .document(uid)
-            .collection("config")
-            .document("hotspot")
-            .get()
+        val uid = uid() ?: return
+        val fs  = firestore ?: return
+        fs.collection("users/$uid/config").document("hotspot").get()
             .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    val config = HotspotConfig(
-                        ssid         = doc.getString("ssid") ?: "NovaMesh",
-                        band         = doc.getLong("band")?.toInt() ?: 0,
+                if (!doc.exists()) return@addOnSuccessListener
+                try {
+                    onLoaded(HotspotConfig(
+                        ssid         = doc.getString("ssid")           ?: "NovaMesh",
+                        band         = doc.getLong("band")?.toInt()    ?: 0,
                         maxDevices   = doc.getLong("max_devices")?.toInt() ?: 8,
-                        dnsPrimary   = doc.getString("dns_primary") ?: "8.8.8.8",
-                        dnsSecondary = doc.getString("dns_secondary") ?: "8.8.4.4",
+                        dnsPrimary   = doc.getString("dns_primary")    ?: "8.8.8.8",
+                        dnsSecondary = doc.getString("dns_secondary")  ?: "8.8.4.4",
                         guestEnabled = doc.getBoolean("guest_enabled") ?: false,
-                        guestSSID    = doc.getString("guest_ssid") ?: "NovaMesh-Guest",
-                        aclMode      = doc.getString("acl_mode") ?: "open"
-                    )
-                    Log.i(TAG, "Remote config loaded")
-                    onLoaded(config)
-                }
+                        guestSSID    = doc.getString("guest_ssid")     ?: "NovaMesh-Guest",
+                        aclMode      = doc.getString("acl_mode")       ?: "open"
+                    ))
+                } catch (e: Exception) { Log.e(TAG, "Config parse error: ${e.message}") }
             }
-            .addOnFailureListener { Log.e(TAG, "Failed to load remote config: ${it.message}") }
+            .addOnFailureListener { Log.w(TAG, "Load remote config failed: ${it.message}") }
     }
 
-    // ────────────────────────────────────────────
-    //  Realtime Database: Live Device List
-    // ────────────────────────────────────────────
+    // ── Realtime Database ──────────────────────────────────────────────────
 
-    /**
-     * Push current connected devices to Realtime DB (for multi-device admin view)
-     */
     fun updateConnectedDevices(clients: List<HotspotManager.ConnectedClient>) {
-        val uid = currentUser?.uid ?: return
+        val uid = uid() ?: return
+        val db  = realtimeDB ?: return
         val data = clients.associate { c ->
             c.mac.replace(":", "_") to mapOf(
-                "ip"         to c.ip,
-                "mac"        to c.mac,
-                "name"       to c.name,
-                "is_blocked" to c.isBlocked,
-                "limit_kbps" to c.bandwidthLimitKbps,
-                "last_seen"  to System.currentTimeMillis()
+                "ip" to c.ip, "mac" to c.mac, "name" to c.name,
+                "is_blocked" to c.isBlocked, "limit_kbps" to c.bandwidthLimitKbps,
+                "last_seen" to System.currentTimeMillis()
             )
         }
-        realtimeDB.child("realtime/$uid/devices").setValue(data)
-            .addOnFailureListener { Log.e(TAG, "RT device update failed: ${it.message}") }
+        try {
+            db.child("realtime/$uid/devices").setValue(data)
+                .addOnFailureListener { Log.w(TAG, "RT device update failed: ${it.message}") }
+        } catch (e: Exception) { Log.w(TAG, "updateConnectedDevices failed: ${e.message}") }
     }
 
-    /**
-     * Listen for remote config changes (e.g., admin changes settings from another device)
-     */
     fun startRealtimeSync(onConfigUpdate: (HotspotConfig) -> Unit) {
-        val uid = currentUser?.uid ?: return
-        val ref = realtimeDB.child("realtime/$uid/remote_config")
-
+        val uid = uid() ?: return
+        val db  = realtimeDB ?: return
         configListener = object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.exists()) return
+            override fun onDataChange(snap: DataSnapshot) {
+                if (!snap.exists()) return
                 try {
-                    val config = HotspotConfig(
-                        ssid         = snapshot.child("ssid").getValue(String::class.java) ?: return,
-                        band         = snapshot.child("band").getValue(Int::class.java) ?: 0,
-                        maxDevices   = snapshot.child("max_devices").getValue(Int::class.java) ?: 8,
-                        dnsPrimary   = snapshot.child("dns_primary").getValue(String::class.java) ?: "8.8.8.8",
-                        dnsSecondary = snapshot.child("dns_secondary").getValue(String::class.java) ?: "8.8.4.4"
-                    )
-                    Log.i(TAG, "Remote config update received")
-                    onConfigUpdate(config)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Config parse error: ${e.message}")
-                }
+                    onConfigUpdate(HotspotConfig(
+                        ssid       = snap.child("ssid").getValue(String::class.java) ?: return,
+                        band       = snap.child("band").getValue(Int::class.java) ?: 0,
+                        maxDevices = snap.child("max_devices").getValue(Int::class.java) ?: 8,
+                        dnsPrimary = snap.child("dns_primary").getValue(String::class.java) ?: "8.8.8.8"
+                    ))
+                } catch (e: Exception) { Log.e(TAG, "RT config parse error: ${e.message}") }
             }
-            override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "RT sync cancelled: ${error.message}")
-            }
+            override fun onCancelled(e: DatabaseError) = Log.w(TAG, "RT sync cancelled: ${e.message}")
         }
-        ref.addValueEventListener(configListener!!)
+        try {
+            db.child("realtime/$uid/remote_config").addValueEventListener(configListener!!)
+        } catch (e: Exception) { Log.w(TAG, "startRealtimeSync failed: ${e.message}") }
     }
 
     fun stopSync() {
-        val uid = currentUser?.uid ?: return
+        val uid = uid() ?: return
+        val db  = realtimeDB ?: return
         configListener?.let {
-            realtimeDB.child("realtime/$uid/remote_config").removeEventListener(it)
+            try { db.child("realtime/$uid/remote_config").removeEventListener(it) }
+            catch (_: Exception) {}
         }
     }
 
-    // ────────────────────────────────────────────
-    //  Firestore: Device Profiles & Rules
-    // ────────────────────────────────────────────
-
-    fun saveDeviceProfile(mac: String, name: String, isBlocked: Boolean) {
-        val uid = currentUser?.uid ?: return
-        firestore.collection("users/$uid/devices")
-            .document(mac.replace(":", "_"))
-            .set(mapOf("mac" to mac, "name" to name, "is_blocked" to isBlocked))
-    }
-
-    fun saveParentalRule(mac: String, blockFrom: String, blockUntil: String) {
-        val uid = currentUser?.uid ?: return
-        firestore.collection("users/$uid/rules")
-            .document("parental_${mac.replace(":", "_")}")
-            .set(mapOf("mac" to mac, "block_from" to blockFrom, "block_until" to blockUntil, "enabled" to true))
-    }
-
-    // ────────────────────────────────────────────
-    //  Stats Logging
-    // ────────────────────────────────────────────
-
-    fun logBandwidthStat(downloadMbps: Double, uploadMbps: Double) {
-        val uid = currentUser?.uid ?: return
-        val entry = mapOf(
-            "timestamp"     to System.currentTimeMillis(),
-            "download_mbps" to downloadMbps,
-            "upload_mbps"   to uploadMbps
-        )
-        realtimeDB.child("realtime/$uid/stats").push().setValue(entry)
+    fun logBandwidthStat(down: Double, up: Double) {
+        val uid = uid() ?: return
+        val db  = realtimeDB ?: return
+        try {
+            db.child("realtime/$uid/stats").push().setValue(
+                mapOf("ts" to System.currentTimeMillis(), "down_mbps" to down, "up_mbps" to up)
+            )
+        } catch (_: Exception) {}
     }
 }
