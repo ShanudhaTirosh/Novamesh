@@ -1,7 +1,10 @@
 package com.novamesh.hotspot
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -9,6 +12,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -44,13 +48,55 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tvStatus       : TextView
     private lateinit var tvSSID         : TextView
+    private lateinit var tvPassword     : TextView
     private lateinit var tvDashboardUrl : TextView
     private lateinit var tvRootStatus   : TextView
     private lateinit var btnOpenDashboard: Button
     private lateinit var btnStop        : Button
+    private lateinit var btnStart       : Button
 
     // Guard: only start the service once per app session
     private var serviceStarted = false
+
+    // Actual gateway IP received from the service broadcast
+    private var currentGatewayIp = HotspotManager.HOTSPOT_IP
+
+    // ── Status broadcast receiver ─────────────────────────────────────────
+
+    private val statusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != HotspotService.ACTION_STATUS) return
+            val status = intent.getStringExtra(HotspotService.EXTRA_STATUS) ?: return
+            when (status) {
+                "running" -> {
+                    val ssid    = intent.getStringExtra(HotspotService.EXTRA_SSID)        ?: ""
+                    val pass    = intent.getStringExtra(HotspotService.EXTRA_PASSWORD)    ?: ""
+                    val ip      = intent.getStringExtra(HotspotService.EXTRA_GATEWAY_IP)  ?: HotspotManager.HOTSPOT_IP
+                    val mode    = intent.getStringExtra(HotspotService.EXTRA_HOTSPOT_MODE) ?: ""
+                    currentGatewayIp = ip
+                    val modeLabel = when (mode) {
+                        "tethered" -> "Tethered"
+                        "local"    -> "Local-Only (no internet share)"
+                        else       -> "Active"
+                    }
+                    tvStatus.text       = "✓ Running — $modeLabel"
+                    if (ssid.isNotEmpty()) tvSSID.text = "SSID: $ssid"
+                    if (pass.isNotEmpty()) tvPassword.text = "Password: $pass"
+                    tvDashboardUrl.text =
+                        "This device : http://127.0.0.1:${HotspotService.WEB_SERVER_PORT}\n" +
+                        "Clients     : http://$ip:${HotspotService.WEB_SERVER_PORT}"
+                    btnStop.visibility  = View.VISIBLE
+                    btnStart.visibility = View.GONE
+                }
+                "stopped" -> {
+                    tvStatus.text       = "Service stopped — tap Start to restart"
+                    serviceStarted      = false
+                    btnStop.visibility  = View.GONE
+                    btnStart.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
 
     // ── Permission launchers ──────────────────────────────────────────────
 
@@ -80,10 +126,12 @@ class MainActivity : AppCompatActivity() {
 
         tvStatus          = findViewById(R.id.tvStatus)
         tvSSID            = findViewById(R.id.tvSSID)
+        tvPassword        = findViewById(R.id.tvPassword)
         tvDashboardUrl    = findViewById(R.id.tvDashboardUrl)
         tvRootStatus      = findViewById(R.id.tvRootStatus)
         btnOpenDashboard  = findViewById(R.id.btnOpenDashboard)
         btnStop           = findViewById(R.id.btnStop)
+        btnStart          = findViewById(R.id.btnStart)
 
         configStore      = HotspotConfigStore(this)
         firebaseManager  = try { FirebaseManager(this) }
@@ -93,12 +141,38 @@ class MainActivity : AppCompatActivity() {
         tvRootStatus.text = "Root: ${RootUtils.statusLabel}"
 
         btnOpenDashboard.setOnClickListener { openDashboard() }
+
         btnStop.setOnClickListener {
             try { startService(HotspotService.stopIntent(this)) } catch (_: Exception) {}
-            tvStatus.text = "Service stopped"
+            tvStatus.text       = "Stopping…"
+            serviceStarted      = false
+            btnStop.visibility  = View.GONE
+            btnStart.visibility = View.VISIBLE
+        }
+
+        btnStart.setOnClickListener {
+            tvStatus.text       = "Service starting…"
+            btnStart.visibility = View.GONE
+            btnStop.visibility  = View.VISIBLE
+            scheduleServiceStart()
         }
 
         requestNotificationPermissionIfNeeded()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val filter = IntentFilter(HotspotService.ACTION_STATUS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(statusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(statusReceiver, filter)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try { unregisterReceiver(statusReceiver) } catch (_: Exception) {}
     }
 
     // ── Permission chain ──────────────────────────────────────────────────
@@ -157,7 +231,8 @@ class MainActivity : AppCompatActivity() {
             val config = configStore.getConfig()
             withContext(Dispatchers.Main) {
                 tvSSID.text         = "SSID: ${config.ssid}"
-                tvDashboardUrl.text = "Dashboard: http://${HotspotManager.HOTSPOT_IP}:${HotspotService.WEB_SERVER_PORT}"
+                tvPassword.text     = "Password: ${config.password}"
+                tvDashboardUrl.text = "Dashboard: http://127.0.0.1:${HotspotService.WEB_SERVER_PORT}"
                 tvStatus.text       = "Service starting…"
             }
         }
@@ -209,7 +284,9 @@ class MainActivity : AppCompatActivity() {
     // ── UI ────────────────────────────────────────────────────────────────
 
     private fun openDashboard() {
-        val url = "http://${HotspotManager.HOTSPOT_IP}:${HotspotService.WEB_SERVER_PORT}"
+        // Open on 127.0.0.1 — works from this device regardless of hotspot mode.
+        // Connected clients should use the gateway IP shown in tvDashboardUrl.
+        val url = "http://127.0.0.1:${HotspotService.WEB_SERVER_PORT}"
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (e: Exception) {

@@ -58,6 +58,9 @@ class LocalWebServer(
             uri == "/" || uri == "/index.html" -> serveFile("dashboard.html", "text/html")
             uri.startsWith("/assets/")         -> serveStaticAsset(uri)
 
+            // ── Auth ──
+            uri == "/api/login"                -> handleLogin(session)
+
             // ── REST API ──
             uri == "/api/status"               -> handleStatus(session)
             uri == "/api/devices"              -> handleDevices(session)
@@ -69,6 +72,27 @@ class LocalWebServer(
             uri == "/api/dns"                  -> requireAuth(session) { handleDNS(session) }
 
             else -> jsonError(404, "Not found: $uri")
+        }
+    }
+
+    // ── Login — returns the real authToken so the dashboard can authenticate ──
+
+    private fun handleLogin(session: IHTTPSession): Response {
+        if (session.method != Method.POST) return jsonError(405, "POST required")
+        return try {
+            val json  = JSONObject(readBody(session))
+            val email = json.optString("email", "")
+            val pass  = json.optString("password", "")
+            // Credentials match the dashboard constants ADMIN_EMAIL / ADMIN_PASS
+            if (email == "admin@novamesh.local" && pass == "nova2024") {
+                Log.i(TAG, "Dashboard authenticated")
+                jsonOk(JSONObject().put("success", true).put("token", authToken))
+            } else {
+                Log.w(TAG, "Dashboard login failed for email=$email")
+                jsonError(401, "Invalid credentials")
+            }
+        } catch (e: Exception) {
+            jsonError(400, "Bad request: ${e.message}")
         }
     }
 

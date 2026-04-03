@@ -66,7 +66,7 @@ class HotspotConfigStore(context: Context) {
             guestPassword = prefs.getString(KEY_GUEST_PASS,   "GuestPass2024")!!,
             guestLimitKbps= prefs.getInt   (KEY_GUEST_LIMIT,  10240),
             aclMode       = prefs.getString(KEY_ACL_MODE,     "open")!!,
-            adminToken    = prefs.getString(KEY_ADMIN_TOKEN,  generateToken())!!,
+            adminToken    = prefs.getString(KEY_ADMIN_TOKEN, null) ?: generateToken(),
             uptimeSeconds = prefs.getLong  (KEY_UPTIME,       0L)
         )
     }

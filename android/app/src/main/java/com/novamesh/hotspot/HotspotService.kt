@@ -36,6 +36,14 @@ class HotspotService : Service() {
         const val ACTION_STOP           = "com.novamesh.ACTION_STOP"
         const val ACTION_TOGGLE_HOTSPOT = "com.novamesh.ACTION_TOGGLE"
 
+        // Status broadcast sent to MainActivity
+        const val ACTION_STATUS         = "com.novamesh.STATUS"
+        const val EXTRA_STATUS          = "status"          // "running" | "stopped"
+        const val EXTRA_SSID            = "ssid"
+        const val EXTRA_PASSWORD        = "password"
+        const val EXTRA_GATEWAY_IP      = "gateway_ip"
+        const val EXTRA_HOTSPOT_MODE    = "hotspot_mode"    // "tethered" | "local" | "none"
+
         fun startIntent(context: Context) =
             Intent(context, HotspotService::class.java).setAction(ACTION_START)
         fun stopIntent(context: Context) =
@@ -106,6 +114,7 @@ class HotspotService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "Service destroying")
+        broadcastStatus("stopped")
         serviceScope.cancel()
         stopAllServices()
         releaseWakeLock()
@@ -154,15 +163,27 @@ class HotspotService : Service() {
         if (success) {
             Log.i(TAG, "Tethered hotspot started: ${config.ssid}")
             notifySafe("Hotspot ON · ${config.ssid}")
+            broadcastStatus("running", config.ssid, config.password, HotspotManager.HOTSPOT_IP, "tethered")
         } else {
             Log.w(TAG, "Tethered hotspot unavailable — trying LocalOnlyHotspot")
             try {
                 hotspotManager.startLocalHotspot(object : HotspotManager.LocalHotspotCallback {
                     override fun onStarted(reservation: WifiManager.LocalOnlyHotspotReservation) {
                         localHotspotReservation = reservation
-                        val ssid = reservation.wifiConfiguration?.SSID ?: "NovaMesh"
-                        Log.i(TAG, "LocalOnlyHotspot started: $ssid")
-                        notifySafe("Local Hotspot · $ssid")
+                        // Read actual credentials from reservation — API varies by OS version
+                        val (ssid, pass) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            val sac = reservation.softApConfiguration
+                            Pair(sac?.ssid ?: "NovaMesh", sac?.passphrase ?: "")
+                        } else {
+                            @Suppress("DEPRECATION")
+                            val wc = reservation.wifiConfiguration
+                            Pair(wc?.SSID ?: "NovaMesh", wc?.preSharedKey ?: "")
+                        }
+                        // LocalOnlyHotspot gateway is always 192.168.49.1
+                        val gatewayIp = "192.168.49.1"
+                        Log.i(TAG, "LocalOnlyHotspot started: $ssid / $gatewayIp")
+                        notifySafe("Local Hotspot · $ssid · $gatewayIp")
+                        broadcastStatus("running", ssid, pass, gatewayIp, "local")
                     }
                     override fun onStopped()           { Log.i(TAG, "LocalOnlyHotspot stopped") }
                     override fun onFailed(reason: Int) { Log.w(TAG, "LocalOnlyHotspot failed: reason=$reason") }
@@ -329,6 +350,32 @@ class HotspotService : Service() {
             nm.notify(NOTIFICATION_ID, buildNotification(text))
         } catch (e: Exception) {
             Log.w(TAG, "Notification update failed: ${e.message}")
+        }
+    }
+
+    // ────────────────────────────────────────────
+    //  Status Broadcast
+    // ────────────────────────────────────────────
+
+    private fun broadcastStatus(
+        status: String,
+        ssid: String = "",
+        password: String = "",
+        gatewayIp: String = "",
+        mode: String = ""
+    ) {
+        try {
+            val intent = android.content.Intent(ACTION_STATUS).apply {
+                putExtra(EXTRA_STATUS,      status)
+                putExtra(EXTRA_SSID,        ssid)
+                putExtra(EXTRA_PASSWORD,    password)
+                putExtra(EXTRA_GATEWAY_IP,  gatewayIp)
+                putExtra(EXTRA_HOTSPOT_MODE, mode)
+                `package` = packageName   // restrict to this app
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.w(TAG, "broadcastStatus failed: ${e.message}")
         }
     }
 

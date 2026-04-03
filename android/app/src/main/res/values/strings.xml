@@ -10,6 +10,8 @@
 
     <string name="btn_open_dashboard">Open Dashboard in Browser</string>
     <string name="btn_stop_service">Stop Service</string>
+    <string name="btn_start_service">Start Service</string>
+    <string name="password_placeholder">Password: —</string>
 
     <string name="footer_hint">Connect a device to your hotspot, then browse to the dashboard URL above.</string>
 
